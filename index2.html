@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Student Wellness — Demo</title>
+  <!-- Chart.js CDN for trend visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#4f46e5; --muted:#94a3b8; --glass: rgba(255,255,255,0.04);
+      --success:#10b981; --danger:#ef4444;
+      font-synthesis: none;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;color:#e6eef8;background:linear-gradient(180deg,#071129 0%, #07172a 100%);}
+    .container{max-width:1100px;margin:28px auto;padding:20px}
+    header{display:flex;align-items:center;gap:12px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#06b6d4);display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    main{display:grid;grid-template-columns:320px 1fr;gap:18px;margin-top:18px}
+    @media (max-width:880px){main{grid-template-columns:1fr} .left{order:2} .right{order:1}}
+
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+    .left .card + .card{margin-top:14px}
+
+    .profile{display:flex;gap:12px;align-items:center}
+    .avatar{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#64748b, #0ea5e9);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px}
+    button{background:var(--accent);border:none;color:white;padding:8px 12px;border-radius:8px;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+    label{display:block;font-size:13px;margin-bottom:6px}
+    input[type='text'], input[type='password'], textarea, select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .mood-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .mood-btn{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);cursor:pointer;text-align:center}
+    .mood-btn.active{outline:3px solid rgba(79,70,229,0.18);transform:translateY(-3px)}
+
+    .small{font-size:12px;color:var(--muted)}
+    .muted{color:var(--muted)}
+    .center{display:flex;align-items:center;justify-content:center}
+
+    footer{margin-top:18px;color:var(--muted);font-size:12px}
+
+    /* accessibility focus */
+    .mood-btn:focus, button:focus, input:focus, textarea:focus{outline:3px solid rgba(79,70,229,0.18);outline-offset:2px}
+
+    /* recommendation pill */
+    .pill{padding:8px;border-radius:999px;background:var(--glass);display:inline-block}
+
+    /* tiny forms */
+    .row{display:flex;gap:8px}
+    .row > *{flex:1}
+
+    .chart-wrap{height:260px}
+
+    .log-list{max-height:220px;overflow:auto;margin-top:10px}
+    .log-item{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.02);margin-bottom:8px}
+
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:none;align-items:center;justify-content:center}
+    .modal{width:min(760px,95%);}
+    .show{display:flex}
+
+    /* compliance banner */
+    .notice{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden>SW</div>
+        <div>
+          <h1>Student Wellness — Demo</h1>
+          <p class="lead">Daily check-ins • Automated sentiment analysis • Personalized recommendations</p>
+        </div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <button id="btn-open-login" class="ghost" aria-haspopup="dialog">Sign in</button>
+        <button id="btn-open-register">Try demo</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="left">
+        <div class="card">
+          <div class="profile">
+            <div class="avatar" id="avatar">U</div>
+            <div>
+              <div id="display-name"><strong>Guest</strong></div>
+              <div class="small muted">No account connected — local demo mode</div>
+            </div>
+          </div>
+
+          <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.02)">
+
+          <div>
+            <label for="mood-entry">How are you feeling today?</label>
+            <div class="mood-grid" role="radiogroup" aria-labelledby="mood-entry">
+              <button class="mood-btn" data-val="1" aria-checked="false">😞<div class="small">Very low</div></button>
+              <button class="mood-btn" data-val="2" aria-checked="false">☹️<div class="small">Low</div></button>
+              <button class="mood-btn" data-val="3" aria-checked="false">😐<div class="small">Okay</div></button>
+              <button class="mood-btn" data-val="4" aria-checked="false">🙂<div class="small">Good</div></button>
+              <button class="mood-btn" data-val="5" aria-checked="false">😄<div class="small">Great</div></button>
+            </div>
+
+            <label for="journal" style="margin-top:10px">Optional: write a short note</label>
+            <textarea id="journal" rows="4" placeholder="How was your day? what's on your mind?" aria-label="journal entry"></textarea>
+
+            <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+              <button id="submit-checkin">Submit check-in</button>
+              <div class="small muted">All demo data stored locally (encrypted). For production, connect to secure server.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>Quick Recommendations</strong><div class="small muted">Evidence-informed suggestions</div></div>
+            <button id="btn-refresh-reco" class="ghost">Refresh</button>
+          </div>
+
+          <div id="reco-list" style="margin-top:12px">
+            <div class="pill">Try a 10-minute guided breathing exercise</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <strong>Privacy & Compliance</strong>
+          <p class="small muted" style="margin-top:8px">This demo shows how to collect mood data while respecting privacy. Real deployments must use: strong authentication, encrypted transport (TLS), server-side storage with access controls, consent flows, and institutional compliance (e.g., FERPA, GDPR where applicable).</p>
+          <div style="margin-top:8px;display:flex;gap:8px">
+            <button id="btn-privacy" class="ghost">View checklist</button>
+            <button id="btn-delete-local" class="ghost">Delete local data</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="right">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div>
+              <h2 style="margin:0">Wellness Dashboard</h2>
+              <div class="small muted">Track trends, sentiment, and personalized insights</div>
+            </div>
+            <div class="small muted">Signed in: <span id="signed-in-state">No</span></div>
+          </div>
+
+          <div style="margin-top:12px" class="chart-wrap">
+            <canvas id="trendChart" aria-label="Mood trend chart" role="img"></canvas>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
+            <div style="flex:1">
+              <strong>Recent Entries</strong>
+              <div class="log-list" id="log-list" aria-live="polite"></div>
+            </div>
+            <div style="width:260px">
+              <strong>Insights</strong>
+              <div id="insights" class="small muted" style="margin-top:8px">No insights yet — submit check-ins to get personalized tips.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <strong>Engagement Tools</strong>
+          <p class="small muted">Set reminders, try guided activities, or request support contacts.</p>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <input type="text" id="reminder-input" placeholder="Remind me at 9:00 AM" aria-label="set reminder">
+            <button id="set-reminder" class="ghost">Set</button>
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <footer>
+      <div class="notice">Demo — not a substitute for professional care. In emergencies contact local emergency services or your institution's on-call support.</div>
+    </footer>
+  </div>
+
+  <!-- Modal: login / register / privacy -->
+  <div id="modal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal card" role="document">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 id="modal-title">Sign in</h3>
+        <button id="close-modal" class="ghost">Close</button>
+      </div>
+      <div style="margin-top:12px">
+        <div id="auth-forms">
+          <div id="login-form">
+            <label for="email">Email</label>
+            <input id="email" type="text" autocomplete="username">
+            <label for="password">Password</label>
+            <input id="password" type="password" autocomplete="current-password">
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button id="do-login">Sign in</button>
+              <button id="open-register" class="ghost">Create account</button>
+            </div>
+          </div>
+
+          <div id="register-form" style="display:none">
+            <label for="r-name">Full name</label>
+            <input id="r-name" type="text" autocomplete="name">
+            <label for="r-email">Email</label>
+            <input id="r-email" type="text" autocomplete="email">
+            <label for="r-password">Password</label>
+            <input id="r-password" type="password" autocomplete="new-password">
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button id="do-register">Create</button>
+              <button id="open-login" class="ghost">Back to login</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /********************* Demo data & storage (encrypted local demo) ********************/
+    const storageKeyMeta = 'sw_demo_meta_v1';
+    const storageKeyData = 'sw_demo_data_v1';
+
+    // Utility: very small wrapper to use Web Crypto API (AES-GCM) for local encryption demo.
+    async function deriveKey(passphrase){
+      const enc = new TextEncoder();
+      const salt = enc.encode('student-wellness-salt-v1');
+      const baseKey = await crypto.subtle.importKey('raw', enc.encode(passphrase), {name:'PBKDF2'}, false, ['deriveKey']);
+      return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:250000,hash:'SHA-256'}, baseKey, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']);
+    }
+    async function encryptData(obj, passphrase){
+      const key = await deriveKey(passphrase);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const enc = new TextEncoder();
+      const data = enc.encode(JSON.stringify(obj));
+      const ct = await crypto.subtle.encrypt({name:'AES-GCM',iv}, key, data);
+      const payload = {iv: Array.from(iv), ct: Array.from(new Uint8Array(ct))};
+      localStorage.setItem(storageKeyData, JSON.stringify(payload));
+      localStorage.setItem(storageKeyMeta, JSON.stringify({timestamp:Date.now()}));
+    }
+    async function decryptData(passphrase){
+      const raw = localStorage.getItem(storageKeyData);
+      if(!raw) return null;
+      try{
+        const {iv,ct} = JSON.parse(raw);
+        const key = await deriveKey(passphrase);
+        const pt = await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(iv)}, key, new Uint8Array(ct).buffer);
+        const dec = new TextDecoder().decode(pt);
+        return JSON.parse(dec);
+      }catch(e){console.warn('decrypt failed',e);return null}
+    }
+
+    // A tiny lexical sentiment engine for demo (replace with server-side ML for production)
+    function sentimentScore(text){
+      if(!text) return 0;
+      const pos = ['good','great','happy','joy','excited','ok','okay','fine','relieved','better','calm','hope'];
+      const neg = ['sad','depressed','angry','upset','anxious','worry','worried','stress','stressed','tired','lonely','hate','bad','terrible'];
+      const t = text.toLowerCase();
+      let score = 0;
+      pos.forEach(w=>{ if(t.includes(w)) score += 1; });
+      neg.forEach(w=>{ if(t.includes(w)) score -= 1; });
+      return Math.max(-5, Math.min(5, score));
+    }
+
+    // Simple recommendation engine — evidence-informed heuristics
+    function generateRecommendations(avgMood, recentNotes){
+      const recs = [];
+      if(avgMood <= 2) recs.push('If you are feeling low, consider reaching out to a trusted friend or campus counselor.');
+      if(avgMood <= 3) recs.push('Try a short breathing exercise (4-4-4) for 5–10 minutes to reduce stress.');
+      if(avgMood >=4) recs.push('Great trend! Maintain routines that support your well-being (sleep, activity, social connection).');
+      if(recentNotes.some(n=>/anxious|panic|panic attack|unable to sleep/.test(n.toLowerCase()))) recs.push('If you experience panic or severe anxiety, use grounding techniques and consider contacting an on-call professional.');
+      if(recs.length===0) recs.push('Keep checking in — small consistent steps help. Try journaling for 5 minutes daily.');
+      return recs;
+    }
+
+    /********************* UI wiring ********************/
+    const moodBtns = document.querySelectorAll('.mood-btn');
+    let selectedMood = null;
+    moodBtns.forEach(b=>{
+      b.addEventListener('click', ()=>{
+        moodBtns.forEach(x=>{x.classList.remove('active'); x.setAttribute('aria-checked','false')});
+        b.classList.add('active'); b.setAttribute('aria-checked','true');
+        selectedMood = parseInt(b.dataset.val,10);
+      });
+    });
+
+    document.getElementById('submit-checkin').addEventListener('click', async ()=>{
+      const journal = document.getElementById('journal').value.trim();
+      if(!selectedMood && !journal){alert('Please choose a mood or write a short note.');return}
+      const score = sentimentScore(journal);
+      const entry = {id:crypto.randomUUID(), mood:selectedMood||3, journal, sentiment:score, createdAt: new Date().toISOString()};
+      // Demo: store encrypted with passphrase 'demo-pass' — in production use server with per-user keys
+      const existing = await decryptData('demo-pass') || [];
+      existing.push(entry);
+      await encryptData(existing, 'demo-pass');
+      document.getElementById('journal').value=''; moodBtns.forEach(x=>{x.classList.remove('active');x.setAttribute('aria-checked','false')}); selectedMood=null;
+      refreshUI();
+    });
+
+    // chart
+    let chart;
+    function buildChart(labels, data){
+      const ctx = document.getElementById('trendChart').getContext('2d');
+      if(chart) chart.destroy();
+      chart = new Chart(ctx, {type:'line',data:{labels, datasets:[{label:'Mood (1-5)',data,fill:true,tension:0.3}]},options:{scales:{y:{min:1,max:5,ticks:{stepSize:1}}}}});
+    }
+
+    async function refreshUI(){
+      const list = await decryptData('demo-pass') || [];
+      // sort ascending date
+      list.sort((a,b)=> new Date(a.createdAt) - new Date(b.createdAt));
+      const labels = list.map(e=> new Date(e.createdAt).toLocaleDateString());
+      const data = list.map(e=> e.mood);
+      buildChart(labels,data.length?data:[3,3,3], labels.length?labels:['No data',''] );
+
+      const log = document.getElementById('log-list'); log.innerHTML='';
+      const recentNotes = [];
+      list.slice().reverse().slice(0,8).forEach(e=>{
+        const d = document.createElement('div'); d.className='log-item';
+        d.innerHTML = `<div style=\"display:flex;justify-content:space-between\"><div><strong>Mood ${e.mood}</strong><div class=\"small muted\">${new Date(e.createdAt).toLocaleString()}</div></div><div class=\"small\">Sentiment: ${e.sentiment}</div></div><div style=\"margin-top:6px\">${escapeHtml(e.journal)}</div>`;
+        log.appendChild(d);
+        if(e.journal) recentNotes.push(e.journal);
+      });
+
+      // insights
+      const avgMood = list.length? Math.round(list.reduce((s,x)=>s+x.mood,0)/list.length) : 3;
+      document.getElementById('insights').innerHTML = `<div>Average mood: <strong>${avgMood}</strong></div><div style=\"margin-top:8px\">Recommendations: <ul id=\"reco-ul\"></ul></div>`;
+      const recs = generateRecommendations(avgMood, recentNotes);
+      const ul = document.getElementById('reco-ul'); recs.forEach(r=>{ const li=document.createElement('li'); li.textContent=r; ul.appendChild(li) });
+      document.getElementById('reco-list').innerHTML = recs.map(r=>`<div class=\"pill\">${escapeHtml(r)}</div>`).join(' ');
+
+      document.getElementById('signed-in-state').textContent = localStorage.getItem('sw_demo_user')? 'Yes (demo)' : 'No';
+    }
+
+    function escapeHtml(s){ if(!s) return ''; return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+    // hooks
+    document.getElementById('btn-open-login').addEventListener('click', ()=>openModal('login'));
+    document.getElementById('btn-open-register').addEventListener('click', ()=>openModal('register'));
+    document.getElementById('open-register').addEventListener('click', ()=>showRegister());
+    document.getElementById('open-login').addEventListener('click', ()=>showLogin());
+    document.getElementById('close-modal').addEventListener('click', ()=>closeModal());
+
+    document.getElementById('do-register').addEventListener('click', ()=>{
+      const name = document.getElementById('r-name').value.trim();
+      const email = document.getElementById('r-email').value.trim();
+      if(!name || !email){alert('Please fill name and email');return}
+      // Demo create account -> store minimal meta
+      localStorage.setItem('sw_demo_user', JSON.stringify({name,email}));
+      document.getElementById('display-name').innerHTML = `<strong>${name}</strong>`;
+      document.getElementById('avatar').textContent = name[0].toUpperCase();
+      closeModal(); refreshUI();
+    });
+    document.getElementById('do-login').addEventListener('click', ()=>{
+      const email = document.getElementById('email').value.trim();
+      if(!email){alert('enter your email');return}
+      const meta = JSON.parse(localStorage.getItem('sw_demo_user')||'null');
+      if(meta && meta.email === email){document.getElementById('display-name').innerHTML = `<strong>${meta.name}</strong>`; document.getElementById('avatar').textContent = meta.name[0].toUpperCase(); localStorage.setItem('sw_demo_user', JSON.stringify(meta)); closeModal(); refreshUI();}
+      else{alert('No demo account found with that email. Use Create account.')}
+    });
+
+    function openModal(tab){document.getElementById('modal').classList.add('show'); if(tab==='register') showRegister(); else showLogin();}
+    function closeModal(){document.getElementById('modal').classList.remove('show');}
+    function showRegister(){document.getElementById('login-form').style.display='none'; document.getElementById('register-form').style.display='block'; document.getElementById('modal-title').textContent='Create account'}
+    function showLogin(){document.getElementById('login-form').style.display='block'; document.getElementById('register-form').style.display='none'; document.getElementById('modal-title').textContent='Sign in'}
+
+    document.getElementById('btn-refresh-reco').addEventListener('click', ()=>refreshUI());
+    document.getElementById('btn-privacy').addEventListener('click', ()=>{
+      alert('Privacy checklist (demo)\n\n- Use HTTPS/TLS for all requests\n- Use OAuth / SAML / institutional SSO for authentication\n- Store PHI/education records on server with access control & audit logs\n- Provide explicit consent screens & data export/deletion options\n- Minimize data kept; anonymize when possible\n- Comply with regional laws (GDPR, FERPA, etc.)');
+    });
+
+    document.getElementById('btn-delete-local').addEventListener('click', ()=>{ if(confirm('Delete all local demo data?')){ localStorage.removeItem(storageKeyData); localStorage.removeItem(storageKeyMeta); refreshUI(); }});
+
+    document.getElementById('set-reminder').addEventListener('click', ()=>{ const v = document.getElementById('reminder-input').value; if(!v) return alert('Enter a reminder'); alert('Reminder set (demo): ' + v); });
+
+    // boot
+    (async function(){
+      if(!localStorage.getItem(storageKeyData)){
+        await encryptData([], 'demo-pass');
+      }
+      const meta = JSON.parse(localStorage.getItem('sw_demo_user')||'null');
+      if(meta){document.getElementById('display-name').innerHTML = `<strong>${meta.name}</strong>`; document.getElementById('avatar').textContent = meta.name[0].toUpperCase();}
+      refreshUI();
+    })();
+
+    // small accessibility: allow keyboard to select moods
+    document.querySelectorAll('.mood-btn').forEach((btn,idx,arr)=>{
+      btn.tabIndex=0; btn.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){e.preventDefault(); btn.click()} if(e.key==='ArrowRight'){ const next = arr[(idx+1)%arr.length]; next.focus()} if(e.key==='ArrowLeft'){ const prev = arr[(idx-1+arr.length)%arr.length]; prev.focus()} });
+    });
+
+    // Disclaimer: this demo runs client-only logic for sentiment & storage. For production implement server-side ML, secure auth, and institutional integrations.
+  </script>
+</body>
+</html>
